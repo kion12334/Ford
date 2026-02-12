@@ -1,0 +1,96 @@
+{
+  "roles": [
+    {
+      "name": "VIP",
+      "price": 10000,
+      "description": "Special VIP role with special permissions",
+      "emoji": "🌟"
+    },
+    {
+      "name": "Diamond",
+      "price": 50000,
+      "description": "Exclusive Diamond role - highest tier",
+      "emoji": "💎"
+    },
+    {
+      "name": "Gold",
+      "price": 25000,
+      "description": "Premium Gold role",
+      "emoji": "🥇"
+    },
+    {
+      "name": "Pro",
+      "price": 15000,
+      "description": "Professional role",
+      "emoji": "⚡"
+    }
+  ],
+  "vehicles": [
+    {
+      "name": "Sports Car",
+      "price": 25000,
+      "description": "Fast luxury car",
+      "emoji": "🏎️"
+    },
+    {
+      "name": "Motorcycle",
+      "price": 10000,
+      "description": "Cool motorcycle",
+      "emoji": "🏍️"
+    },
+    {
+      "name": "Limousine",
+      "price": 50000,
+      "description": "Luxury limousine",
+      "emoji": "🚗"
+    }
+  ],
+  "properties": [
+    {
+      "name": "Mansion",
+      "price": 500000,
+      "description": "Luxury mansion with pool",
+      "emoji": "🏰"
+    },
+    {
+      "name": "Penthouse",
+      "price": 250000,
+      "description": "City penthouse",
+      "emoji": "🏙️"
+    },
+    {
+      "name": "Beach House",
+      "price": 150000,
+      "description": "House by the beach",
+      "emoji": "🏖️"
+    }
+  ],
+  "aircraft": [
+    {
+      "name": "Private Jet",
+      "price": 1000000,
+      "description": "Fly anywhere in style",
+      "emoji": "✈️"
+    },
+    {
+      "name": "Helicopter",
+      "price": 500000,
+      "description": "Personal helicopter",
+      "emoji": "🚁"
+    }
+  ],
+  "yachts": [
+    {
+      "name": "Super Yacht",
+      "price": 2000000,
+      "description": "Luxury super yacht",
+      "emoji": "🛥️"
+    },
+    {
+      "name": "Sailboat",
+      "price": 75000,
+      "description": "Beautiful sailboat",
+      "emoji": "⛵"
+    }
+  ]
+}

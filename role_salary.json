@@ -1,0 +1,11 @@
+{
+  "default": 1000,
+  "Admin": 5000,
+  "Moderator": 3000,
+  "VIP": 2000,
+  "Diamond": 3000,
+  "Gold": 1500,
+  "Pro": 1200,
+  "Staff": 2500,
+  "Helper": 1000
+}
