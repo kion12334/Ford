@@ -1,0 +1,41 @@
+{
+  "businesses": {},
+  "business_types": {
+    "cafe": {
+      "name": "Cafe",
+      "emoji": "☕",
+      "min_investment": 10000,
+      "profit_rate": 0.15
+    },
+    "shop": {
+      "name": "Shop",
+      "emoji": "🛍️",
+      "min_investment": 20000,
+      "profit_rate": 0.20
+    },
+    "factory": {
+      "name": "Factory",
+      "emoji": "🏭",
+      "min_investment": 50000,
+      "profit_rate": 0.25
+    },
+    "farm": {
+      "name": "Farm",
+      "emoji": "🚜",
+      "min_investment": 30000,
+      "profit_rate": 0.18
+    },
+    "tech": {
+      "name": "Tech Company",
+      "emoji": "💻",
+      "min_investment": 100000,
+      "profit_rate": 0.30
+    },
+    "restaurant": {
+      "name": "Restaurant",
+      "emoji": "🍽️",
+      "min_investment": 40000,
+      "profit_rate": 0.22
+    }
+  }
+}
