@@ -8,7 +8,7 @@ import random
 import sys
 import aiohttp
 import gc
-
+from database import Database
 print("🚀 Starting Discord Bot on Railway...")
 print("=" * 50)
 
