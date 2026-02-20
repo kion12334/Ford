@@ -49,26 +49,4 @@ class Database:
             for uid, wallet in wallets.items():
                 bank = banks.get(uid, 0)
                 ld = last_daily.get(uid)
-                lw = last_work.get(uid)
-                oi = json.dumps(owned_items.get(uid, {}))
-                biz = json.dumps(businesses.get(uid, {}))
-                await conn.execute('''
-                    INSERT INTO economy (user_id, wallet, bank, last_daily, last_work, owned_items, businesses)
-                    VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb)
-                    ON CONFLICT (user_id) DO UPDATE SET
-                        wallet = EXCLUDED.wallet,
-                        bank = EXCLUDED.bank,
-                        last_daily = EXCLUDED.last_daily,
-                        last_work = EXCLUDED.last_work,
-                        owned_items = EXCLUDED.owned_items,
-                        businesses = EXCLUDED.businesses
-                ''', int(uid), wallet, bank,
-                    datetime.datetime.fromisoformat(ld) if ld else None,
-                    datetime.datetime.fromisoformat(lw) if lw else None,
-                    oi, biz)
-
-    # Add similar methods for warnings, quarantine, etc. if needed
-
-    async def close(self):
-        if self.pool:
-            await self.pool.close()
+                lw = 
