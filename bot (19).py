@@ -1374,34 +1374,37 @@ async def on_message(message):
         except:
             pass
 
-
-     # ----- AFK ping reply (works with @mentions AND replies) -----
+# ----- AFK ping reply (works with @mentions AND replies) -----
 afk_targets = []
-       ····# Direct @mentions
-····if message.mentions:
-········for mentioned in message.mentions:
-············afk_targets.append(mentioned)
-    ····# Replies (message.reference)
-····if message.reference and message.reference.resolved:
-········replied = message.reference.resolved
-········if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
-············if replied.author not in afk_targets:
-················afk_targets.append(replied.author)
-····for target in afk_targets:
-········target_id = str(target.id)
-········if target_id in bot.afk_users:
-············afk_info = bot.afk_users[target_id]
-············reason = afk_info.get("reason", "No reason")
-············time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
-············embed = discord.Embed(
-················title=f"🔕 {target.display_name} is AFK",
-················description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
-················color=discord.Color.orange()
-············)
-············if target.avatar:
-················embed.set_thumbnail(url=target.avatar.url)
-············await message.channel.send(embed=embed)
-············break
+
+# Direct @mentions
+if message.mentions:
+    for mentioned in message.mentions:
+        afk_targets.append(mentioned)
+
+# Replies (message.reference)
+if message.reference and message.reference.resolved:
+    replied = message.reference.resolved
+    if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
+        if replied.author not in afk_targets:
+            afk_targets.append(replied.author)
+
+for target in afk_targets:
+    target_id = str(target.id)
+    if target_id in bot.afk_users:
+        afk_info = bot.afk_users[target_id]
+        reason = afk_info.get("reason", "No reason")
+        time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
+        embed = discord.Embed(
+            title=f"🔕 {target.display_name} is AFK",
+            description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
+            color=discord.Color.orange()
+        )
+        if target.avatar:
+            embed.set_thumbnail(url=target.avatar.url)
+        await message.channel.send(embed=embed)
+        break
+     
 
 
 
