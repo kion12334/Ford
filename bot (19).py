@@ -1374,7 +1374,8 @@ async def on_message(message):
         except:
             pass
 
-   # ----- AFK ping reply (works with @mentions AND replies) -----
+
+# ----- AFK ping reply (works with @mentions AND replies) -----
 afk_targets = []
 
 # Direct @mentions
@@ -1386,7 +1387,6 @@ if message.mentions:
 if message.reference and message.reference.resolved:
     replied = message.reference.resolved
     if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
-        # Avoid duplicate if the replied user was also @mentioned
         if replied.author not in afk_targets:
             afk_targets.append(replied.author)
 
@@ -1404,7 +1404,7 @@ for target in afk_targets:
         if target.avatar:
             embed.set_thumbnail(url=target.avatar.url)
         await message.channel.send(embed=embed)
-        break 
+        break    
 
     # ----- ADVANCED AUTO-MOD: Check rules -----
     rules = load_auto_rules()
