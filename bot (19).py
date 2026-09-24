@@ -1374,23 +1374,37 @@ async def on_message(message):
         except:
             pass
 
-    # ----- AFK ping reply -----
-    if message.mentions:
-        for mentioned in message.mentions:
-            mentioned_id = str(mentioned.id)
-            if mentioned_id in bot.afk_users:
-                afk_info = bot.afk_users[mentioned_id]
-                reason = afk_info.get("reason", "No reason")
-                time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
-                embed = discord.Embed(
-                    title=f"🔕 {mentioned.display_name} is AFK",
-                    description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
-                    color=discord.Color.orange()
-                )
-                if mentioned.avatar:
-                    embed.set_thumbnail(url=mentioned.avatar.url)
-                await message.channel.send(embed=embed)
-                break
+   # ----- AFK ping reply (works with @mentions AND replies) -----
+afk_targets = []
+
+# Direct @mentions
+if message.mentions:
+    for mentioned in message.mentions:
+        afk_targets.append(mentioned)
+
+# Replies (message.reference)
+if message.reference and message.reference.resolved:
+    replied = message.reference.resolved
+    if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
+        # Avoid duplicate if the replied user was also @mentioned
+        if replied.author not in afk_targets:
+            afk_targets.append(replied.author)
+
+for target in afk_targets:
+    target_id = str(target.id)
+    if target_id in bot.afk_users:
+        afk_info = bot.afk_users[target_id]
+        reason = afk_info.get("reason", "No reason")
+        time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
+        embed = discord.Embed(
+            title=f"🔕 {target.display_name} is AFK",
+            description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
+            color=discord.Color.orange()
+        )
+        if target.avatar:
+            embed.set_thumbnail(url=target.avatar.url)
+        await message.channel.send(embed=embed)
+        break 
 
     # ----- ADVANCED AUTO-MOD: Check rules -----
     rules = load_auto_rules()
@@ -1507,10 +1521,10 @@ def save_loans_adv(data):
     with open(LOANS_ADV_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-# ==================== ON_MESSAGE_DELETE EVENT (UPDATED WITH LIMITS) ====================
+# ==================== ON_MESSAGE_DELETE EVENT ====================
 @bot.event
 async def on_message_delete(message):
-    if message.author.bot:
+    if not message.guild:
         return
     if not hasattr(bot, 'snipe_messages'):
         bot.snipe_messages = {}
@@ -1521,9 +1535,11 @@ async def on_message_delete(message):
 
     bot.snipe_messages[channel_id].append({
         "author": message.author,
-        "content": message.content,
+        "author_name": message.author.display_name,
+        "content": message.content if message.content else "*[no text content]*",
         "timestamp": datetime.datetime.now(),
-        "deleted_by_automod": False
+        "deleted_by_automod": False,
+        "attachments": [a.url for a in message.attachments] if message.attachments else []
     })
 
     # Trim per-channel list
@@ -1544,22 +1560,81 @@ async def on_message_delete(message):
             if not bot.snipe_messages[ch]:
                 del bot.snipe_messages[ch]
 
-# ==================== SNIPE COMMAND (UPDATED) ====================
+# ==================== ON_MESSAGE_EDIT EVENT ====================
+@bot.event
+async def on_message_edit(before, after):
+    if before.author.bot:
+        return
+    if before.content == after.content:
+        return
+    if not before.guild:
+        return
+
+    if not hasattr(bot, 'edit_snipes'):
+        bot.edit_snipes = {}
+
+    channel_id = before.channel.id
+    if channel_id not in bot.edit_snipes:
+        bot.edit_snipes[channel_id] = []
+
+    bot.edit_snipes[channel_id].append({
+        "author": before.author,
+        "before": before.content if before.content else "*[no text]*",
+        "after": after.content if after.content else "*[no text]*",
+        "timestamp": datetime.datetime.now(),
+        "jump_url": after.jump_url
+    })
+
+    # Trim
+    if len(bot.edit_snipes[channel_id]) > MAX_SNIPE_MESSAGES_PER_CHANNEL:
+        bot.edit_snipes[channel_id] = bot.edit_snipes[channel_id][-MAX_SNIPE_MESSAGES_PER_CHANNEL:]
+
 @bot.command(name="s", aliases=["snipe"])
 async def snipe_command(ctx):
     channel_id = ctx.channel.id
     if channel_id not in bot.snipe_messages or not bot.snipe_messages[channel_id]:
         return await ctx.send("❌ Nothing to snipe.", delete_after=5)
 
-    data = bot.snipe_messages[channel_id][-1]
-    embed = create_embed(f"🕵️ Snipe | #{ctx.channel.name}",
-        f"**Author:** {data['author'].mention}\n**Content:** {data['content']}\n**Deleted at:** {data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}",
-        discord.Color.blue())
-    if data.get('deleted_by_automod', False):
+    # Pop the most recent snipe (removes it from storage after viewing)
+    data = bot.snipe_messages[channel_id].pop()
+    if not bot.snipe_messages[channel_id]:
+        del bot.snipe_messages[channel_id]
+
+    embed = create_embed(
+        f"🕵️ Snipe | #{ctx.channel.name}",
+        f"**Author:** {data['author'].mention}\n"
+        f"**Content:** {data['content']}\n"
+        f"**Deleted at:** {data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}",
+        discord.Color.blue()
+    )
+    if data.get("attachments"):
+        embed.add_field(name="📎 Attachments", value="\n".join(data["attachments"][:3]), inline=False)
+    if data.get("deleted_by_automod", False):
         embed.add_field(name="🤖 Auto-Mod", value=f"Deleted for banned word: `{data.get('banned_word', 'unknown')}`\nAction: `{data.get('action', 'delete')}`", inline=False)
         embed.color = discord.Color.red()
     await ctx.send(embed=embed)
 
+
+@bot.command(name="editsnipe", aliases=["es"])
+async def edit_snipe_command(ctx):
+    channel_id = ctx.channel.id
+    if not hasattr(bot, 'edit_snipes') or channel_id not in bot.edit_snipes or not bot.edit_snipes[channel_id]:
+        return await ctx.send("❌ Nothing to edit-snipe.", delete_after=5)
+
+    data = bot.edit_snipes[channel_id].pop()
+    if not bot.edit_snipes[channel_id]:
+        del bot.edit_snipes[channel_id]
+
+    embed = create_embed(
+        f"✏️ Edit Snipe | #{ctx.channel.name}",
+        f"**Author:** {data['author'].mention}\n"
+        f"**Edited at:** {data['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        f"**Before:**\n{data['before'][:500]}\n\n"
+        f"**After:**\n{data['after'][:500]}",
+        discord.Color.orange()
+    )
+    embed.set_footer(text="Original message content shown above")
+    await ctx.send(embed=embed)
 # ==================== CLAN TAG PERSISTENCE ====================
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
@@ -1578,7 +1653,21 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         return
     await update_clan_nickname(after, clan["clan_name"])
     
-    
+
+@bot.command(name="banner", aliases=["userbanner"])
+async def banner(ctx, member: discord.Member = None):
+    """Show a user's profile banner."""
+    target = member or ctx.author
+    try:
+        user = await bot.fetch_user(target.id)
+        if not user.banner:
+            return await ctx.send(f"❌ {target.display_name} has no banner set.")
+        embed = discord.Embed(title=f"🖼️ {target.display_name}'s Banner", color=discord.Color.blue())
+        embed.set_image(url=user.banner.url)
+        embed.set_footer(text=f"Requested by {ctx.author.name}")
+        await ctx.send(embed=embed)
+    except Exception as e:
+        await ctx.send(f"❌ Could not fetch banner: {str(e)[:80]}")
 
 
 # ==================== BASIC COMMANDS ====================
@@ -1912,11 +2001,40 @@ async def kick(ctx, member: discord.Member, *, reason="No reason"):
 
 @bot.command(name="b")
 @commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member, *, reason="No reason"):
-    if not can_moderate(ctx.author, member):
-        return await ctx.send("❌ You cannot ban a user with a higher or equal role.")
-    if member.guild_permissions.administrator:
-        return await ctx.send("❌ Cannot ban an administrator.")
+async def ban(ctx, target: str, *, reason="No reason"):
+    """Ban a user. Works with @mention, user ID, or username (even if they left the server)."""
+    target = target.strip()
+    member = None
+    user_id = None
+
+    # Strip mention syntax if used
+    if target.startswith("<@") and target.endswith(">"):
+        target = target.strip("<@!>")
+
+    # Case 1: user ID
+    if target.isdigit():
+        user_id = int(target)
+        member = ctx.guild.get_member(user_id)
+
+    # Case 2: name lookup (only works for members in the guild)
+    else:
+        member = discord.utils.get(ctx.guild.members, name=target)
+        if not member:
+            member = discord.utils.get(ctx.guild.members, display_name=target)
+        if member:
+            user_id = member.id
+
+    if not user_id:
+        return await ctx.send("❌ Could not find that user. Use a mention, user ID, or exact username.")
+
+    # Hierarchy checks (only if member is in the guild)
+    if member:
+        if not can_moderate(ctx.author, member):
+            return await ctx.send("❌ You cannot ban a user with a higher or equal role.")
+        if member.guild_permissions.administrator:
+            return await ctx.send("❌ Cannot ban an administrator.")
+
+    # ---- Stats tracking ----
     mod_stats_file = "mod_action_stats.json"
     try:
         with open(mod_stats_file, "r") as f:
@@ -1932,12 +2050,84 @@ async def ban(ctx, member: discord.Member, *, reason="No reason"):
     stats[guild_id][actor_id]["bans"] = stats[guild_id][actor_id].get("bans", 0) + 1
     with open(mod_stats_file, "w") as f:
         json.dump(stats, f, indent=2)
+
+    # ---- Perform ban ----
     try:
-        await member.ban(reason=f"{ctx.author}: {reason}")
-        embed = create_embed("🔨 User Banned", f"**User:** {member.mention}\n**Reason:** {reason}\n**By:** {ctx.author.mention}", discord.Color.red())
+        if member:
+            await member.ban(reason=f"{ctx.author}: {reason}")
+            banned_name = str(member)
+        else:
+            user = await bot.fetch_user(user_id)
+            await ctx.guild.ban(user, reason=f"{ctx.author}: {reason}")
+            banned_name = str(user)
+
+        embed = create_embed(
+            "🔨 User Banned",
+            f"**User:** {banned_name} (`{user_id}`)\n"
+            f"**Reason:** {reason}\n"
+            f"**By:** {ctx.author.mention}",
+            discord.Color.red()
+        )
         await ctx.send(embed=embed)
+
+    except discord.NotFound:
+        await ctx.send("❌ That user could not be found. Check the ID.")
     except discord.Forbidden:
         await ctx.send("❌ I don't have permission to ban this user.")
+    except discord.HTTPException as e:
+        await ctx.send(f"❌ Ban failed: {str(e)[:100]}")
+
+@bot.command(name="unban", aliases=["ub"])
+@commands.has_permissions(ban_members=True)
+async def unban(ctx, target: str, *, reason="No reason"):
+    """Unban a user by ID, username, or mention. Works even if they're not in the server."""
+    target = target.strip()
+
+    # Strip mention syntax if used
+    if target.startswith("<@") and target.endswith(">"):
+        target = target.strip("<@!>")
+
+    # ---- Case 1: user ID ----
+    if target.isdigit():
+        user_id = int(target)
+        try:
+            user = await bot.fetch_user(user_id)
+            await ctx.guild.unban(user, reason=f"{ctx.author}: {reason}")
+            embed = create_embed(
+                "🔓 User Unbanned",
+                f"**User:** {user.name} (`{user_id}`)\n"
+                f"**Reason:** {reason}\n"
+                f"**By:** {ctx.author.mention}",
+                discord.Color.green()
+            )
+            await ctx.send(embed=embed)
+            return
+        except discord.NotFound:
+            return await ctx.send("❌ That user is not banned, or the ID is invalid.")
+        except discord.Forbidden:
+            return await ctx.send("❌ I don't have permission to unban.")
+        except Exception as e:
+            return await ctx.send(f"❌ Unban failed: {str(e)[:100]}")
+
+    # ---- Case 2: username lookup (from ban list) ----
+    banned_users = [entry async for entry in ctx.guild.bans()]
+    for entry in banned_users:
+        if entry.user.name.lower() == target.lower() or entry.user.display_name.lower() == target.lower():
+            try:
+                await ctx.guild.unban(entry.user, reason=f"{ctx.author}: {reason}")
+                embed = create_embed(
+                    "🔓 User Unbanned",
+                    f"**User:** {entry.user.name} (`{entry.user.id}`)\n"
+                    f"**Reason:** {reason}\n"
+                    f"**By:** {ctx.author.mention}",
+                    discord.Color.green()
+                )
+                await ctx.send(embed=embed)
+                return
+            except discord.Forbidden:
+                return await ctx.send("❌ I don't have permission to unban.")
+
+    await ctx.send(f"❌ No banned user matching `{target}` found. Try using their user ID.")
 
 @bot.command(name="clear", aliases=["purge"])
 @commands.has_permissions(manage_messages=True)
