@@ -1271,29 +1271,8 @@ async def on_member_remove(member):
         del loans[user_id]
         save_loans_adv(loans)
         print(f"🗑️ Deleted loan for {member.name} (left server)")
-
-# ==================== SPAM DETECTION HELPER ====================
-def is_spam(message_content: str, config: dict) -> bool:
-    emojis = re.findall(r'[\U00010000-\U0010ffff]', message_content)
-    if len(emojis) >= config.get("threshold", 3):
-        return True
-    if len(message_content) > 10:
-        for char in set(message_content):
-            if message_content.count(char) > config.get("threshold", 3) * 3:
-                return True
-    invite_patterns = [
-        r'discord\.gg\/[a-zA-Z0-9]+',
-        r'discordapp\.com\/invite\/[a-zA-Z0-9]+',
-        r'discord\.com\/invite\/[a-zA-Z0-9]+'
-    ]
-    for pattern in invite_patterns:
-        if re.search(pattern, message_content.lower()):
-            return True
-    return False
-    
-    
-
-
+        
+        
 @bot.event
 async def on_message(message):
     # ========== PREFIXLESS COMMAND HANDLING ==========
@@ -1374,39 +1353,36 @@ async def on_message(message):
         except:
             pass
 
-# ----- AFK ping reply (works with @mentions AND replies) -----
-afk_targets = []
+    # ----- AFK ping reply (works with @mentions AND replies) -----
+    afk_targets = []
 
-# Direct @mentions
-if message.mentions:
-    for mentioned in message.mentions:
-        afk_targets.append(mentioned)
+    # Direct @mentions
+    if message.mentions:
+        for mentioned in message.mentions:
+            afk_targets.append(mentioned)
 
-# Replies (message.reference)
-if message.reference and message.reference.resolved:
-    replied = message.reference.resolved
-    if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
-        if replied.author not in afk_targets:
-            afk_targets.append(replied.author)
+    # Replies (message.reference)
+    if message.reference and message.reference.resolved:
+        replied = message.reference.resolved
+        if isinstance(replied, discord.Message) and replied.author and not replied.author.bot:
+            if replied.author not in afk_targets:
+                afk_targets.append(replied.author)
 
-for target in afk_targets:
-    target_id = str(target.id)
-    if target_id in bot.afk_users:
-        afk_info = bot.afk_users[target_id]
-        reason = afk_info.get("reason", "No reason")
-        time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
-        embed = discord.Embed(
-            title=f"🔕 {target.display_name} is AFK",
-            description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
-            color=discord.Color.orange()
-        )
-        if target.avatar:
-            embed.set_thumbnail(url=target.avatar.url)
-        await message.channel.send(embed=embed)
-        break
-     
-
-
+    for target in afk_targets:
+        target_id = str(target.id)
+        if target_id in bot.afk_users:
+            afk_info = bot.afk_users[target_id]
+            reason = afk_info.get("reason", "No reason")
+            time_afk = (datetime.datetime.now() - datetime.datetime.fromisoformat(afk_info["time"])).seconds // 60
+            embed = discord.Embed(
+                title=f"🔕 {target.display_name} is AFK",
+                description=f"**Reason:** {reason}\n**For:** {time_afk} minutes",
+                color=discord.Color.orange()
+            )
+            if target.avatar:
+                embed.set_thumbnail(url=target.avatar.url)
+            await message.channel.send(embed=embed)
+            break
 
     # ----- ADVANCED AUTO-MOD: Check rules -----
     rules = load_auto_rules()
@@ -1504,9 +1480,6 @@ for target in afk_targets:
 
     if message.content.strip().lower() == "best staff in ford high":
         await message.channel.send("spider")
-        
-        
-
 
 
 # ==================== LOAN FUNCTIONS ====================
