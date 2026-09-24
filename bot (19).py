@@ -2872,9 +2872,20 @@ async def editshopitem(ctx, category: str, item_name: str, new_price: int, *, ne
 # ==================== SALARY COMMANDS ====================
 @bot.command(name="setsalary")
 @commands.has_permissions(administrator=True)
-async def setsalary(ctx, role_name: str, amount: int):
-    if amount < 0:
+async def setsalary(ctx, amount: str, *, role_name: str):
+    """
+    Set a weekly salary for a role.
+    Usage: !setsalary <amount> <role name>
+    Example: !setsalary 6m Managing director
+    """
+    try:
+        salary = parse_money_amount(amount)
+    except:
+        return await ctx.send("❌ Invalid salary amount! Use a number or shorthand like 5m (million), 5b (billion), 5t (trillion).")
+
+    if salary < 0:
         return await ctx.send("❌ Salary cannot be negative.")
+
     role = discord.utils.get(ctx.guild.roles, name=role_name)
     if not role:
         for r in ctx.guild.roles:
@@ -2883,11 +2894,17 @@ async def setsalary(ctx, role_name: str, amount: int):
                 break
     if not role:
         return await ctx.send(f"❌ Role `{role_name}` not found.")
-    bot.role_salaries[role.name] = amount
+
+    bot.role_salaries[role.name] = salary
     asyncio.create_task(async_save_role_salaries())
     with open(ROLE_SALARIES_FILE, "w") as f:
         json.dump(bot.role_salaries, f, indent=2)
-    embed = create_embed("✅ Salary Set", f"**Role:** {role.name}\n**Weekly Salary:** {format_money(amount)}", discord.Color.green())
+
+    embed = create_embed(
+        "✅ Salary Set",
+        f"**Role:** {role.name}\n**Weekly Salary:** {format_money(salary)}",
+        discord.Color.green()
+    )
     await ctx.send(embed=embed)
 
 @bot.command(name="salarylist")
